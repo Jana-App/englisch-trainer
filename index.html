@@ -50,9 +50,10 @@
   .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
   .bar-fill { height: 100%; background: var(--green); border-radius: 4px; width: 0%; transition: width .4s ease; }
 
-  .seg { display: flex; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+  .seg { display: flex; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 8px; }
   .seg button { flex: 1; border: none; border-radius: 0; background: none; font-weight: 600; color: var(--ink-soft); padding: 11px; min-height: 44px; }
   .seg button.active { background: var(--ink); color: #fff; }
+  .seg.lvl button.active { background: var(--red); }
 
   .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
@@ -175,6 +176,11 @@
   <div class="bar"><div class="bar-fill" id="daily-bar"></div></div>
 </div>
 
+<div class="seg lvl" id="seg-lvl">
+  <button id="lvl-a" class="active">Niveau A1–A2</button>
+  <button id="lvl-b">Niveau B1</button>
+</div>
+
 <div class="seg" id="seg">
   <button id="seg-s" class="active">Sätze</button>
   <button id="seg-v">Vokabeln</button>
@@ -226,8 +232,7 @@
     <div class="stat"><div class="num" id="s-known">0</div><div class="lbl">Gemeistert</div></div>
     <div class="stat"><div class="num" id="s-quiz">0 %</div><div class="lbl">Quiz-Quote heute</div></div>
   </div>
-  <div class="cat-prog" id="cat-prog-s"><h3>Sätze</h3><div id="cat-rows-s"></div></div>
-  <div class="cat-prog" id="cat-prog-v"><h3>Vokabeln</h3><div id="cat-rows-v"></div></div>
+  <div id="cat-prog-all"></div>
   <button class="reset" id="btn-reset">Fortschritt zurücksetzen</button>
 </div>
 
@@ -241,80 +246,143 @@
 
 <script>
 // [de, en, tip?] – tip erklärt typische Fehler deutscher Lerner
-const SENT = {
+const SENT_A = {
   "Begrüßung": [
     ["Hallo, wie geht es dir?", "Hello, how are you?"],
     ["Mir geht es gut, danke. Und dir?", "I'm fine, thank you. And you?"],
-    ["Ich heiße Anna.", "My name is Anna.", "Auch möglich: „I'm Anna.“ – Aber nicht „I hot Anna“! „heißen“ hat keine direkte Übersetzung."],
+    ["Ich heiße Anna.", "My name is Anna.", "Auch möglich: „I'm Anna.“ – „heißen“ hat keine direkte Übersetzung."],
     ["Freut mich, dich kennenzulernen.", "Nice to meet you."],
-    ["Woher kommst du?", "Where are you from?", "Wörtlich: „Wo bist du von?“ – Das „from“ wandert ans Ende. Nicht: „From where come you?“"],
+    ["Woher kommst du?", "Where are you from?", "Das „from“ wandert ans Ende. Nicht: „From where come you?“"],
     ["Ich komme aus Deutschland.", "I'm from Germany.", "Kürzer und natürlicher als „I come from Germany“ (auch korrekt)."],
     ["Bis später!", "See you later!"],
     ["Schönen Tag noch!", "Have a nice day!"],
     ["Guten Morgen!", "Good morning!"],
-    ["Wie heißt du?", "What's your name?", "Wörtlich: „Was ist dein Name?“ – nicht „How you hot?“ 😉"]
+    ["Wie heißt du?", "What's your name?", "Wörtlich: „Was ist dein Name?“"]
   ],
   "Café & Restaurant": [
     ["Einen Kaffee, bitte.", "A coffee, please."],
-    ["Kann ich die Speisekarte sehen?", "Can I see the menu?", "„menu“ = Speisekarte! Das deutsche „Menü“ (Gericht) heißt „set meal“ oder „course“."],
-    ["Ich hätte gern das Hähnchen.", "I would like the chicken.", "„I would like“ ist höflich – „I want“ klingt im Restaurant fordernd."],
+    ["Kann ich die Speisekarte sehen?", "Can I see the menu?", "„menu“ = Speisekarte! Das deutsche „Menü“ (Gericht) heißt „set meal“."],
+    ["Ich hätte gern das Hähnchen.", "I would like the chicken.", "„I would like“ ist höflich – „I want“ klingt fordernd."],
     ["Was empfehlen Sie?", "What do you recommend?"],
-    ["Die Rechnung, bitte.", "The bill, please.", "Britisch: „bill“, amerikanisch: „check“. Beides wird verstanden."],
-    ["Kann ich mit Karte zahlen?", "Can I pay by card?", "Zahlungsart = „by“: pay by card, by bank transfer. „with“ betont das Werkzeug („with a card“ geht, ist aber seltener). Bargeld: „in cash“!"],
+    ["Die Rechnung, bitte.", "The bill, please.", "Britisch: „bill“, amerikanisch: „check“."],
+    ["Kann ich mit Karte zahlen?", "Can I pay by card?", "Zahlungsart = „by“: pay by card, by bank transfer. „with“ betont das Werkzeug. Bargeld: „in cash“!"],
     ["Das war sehr lecker.", "That was very tasty.", "Auch schön: „That was delicious.“ – „delicious“ braucht kein „very“."],
     ["Haben Sie einen Tisch für zwei?", "Do you have a table for two?"],
     ["Ein Glas Wasser, bitte.", "A glass of water, please.", "Immer „glass OF water“ – das „of“ vergessen viele Deutsche."],
-    ["Ich bin Vegetarier.", "I'm a vegetarian.", "Bei Berufen und Gruppen steht im Englischen ein „a“: I'm A vegetarian, I'm A teacher."]
+    ["Ich bin Vegetarier.", "I'm a vegetarian.", "Bei Berufen und Gruppen steht ein „a“: I'm A vegetarian, I'm A teacher."]
   ],
   "Einkaufen": [
-    ["Wie viel kostet das?", "How much is this?", "Kurzform ohne „cost“. Mit Verb: „How much does this cost?“ – nicht „How much costs this?“"],
-    ["Ich schaue mich nur um.", "I'm just looking.", "Feste Floskel im Laden. Nicht wörtlich „I look me only around“."],
+    ["Wie viel kostet das?", "How much is this?", "Mit Verb: „How much does this cost?“ – nicht „How much costs this?“"],
+    ["Ich schaue mich nur um.", "I'm just looking.", "Feste Floskel im Laden."],
     ["Haben Sie das in Größe M?", "Do you have this in size M?"],
-    ["Kann ich das anprobieren?", "Can I try this on?", "„try on“ = anprobieren (Kleidung). Nur „try“ = probieren/versuchen."],
+    ["Kann ich das anprobieren?", "Can I try this on?", "„try on“ = anprobieren (Kleidung). Nur „try“ = probieren."],
     ["Das nehme ich.", "I'll take this."],
-    ["Das ist zu teuer.", "That's too expensive.", "„too“ = zu (negativ), „very“ = sehr. „too expensive“ heißt: mehr als ich zahlen will."],
-    ["Wo ist die Kasse?", "Where is the checkout?", "Im Laden: „checkout“ oder „till“ (brit.). „cash register“ ist die Maschine selbst."],
+    ["Das ist zu teuer.", "That's too expensive.", "„too“ = zu (negativ), „very“ = sehr."],
+    ["Wo ist die Kasse?", "Where is the checkout?", "„checkout“ oder „till“ (brit.)."],
     ["Kann ich eine Tüte haben?", "Can I have a bag?"],
-    ["Gibt es das im Angebot?", "Is this on sale?", "„on sale“ = reduziert/im Angebot. „for sale“ = steht zum Verkauf. Kleiner Unterschied, große Wirkung!"],
+    ["Gibt es das im Angebot?", "Is this on sale?", "„on sale“ = reduziert. „for sale“ = steht zum Verkauf."],
     ["Ich möchte das umtauschen.", "I would like to exchange this."]
   ],
   "Unterwegs": [
-    ["Entschuldigung, wo ist der Bahnhof?", "Excuse me, where is the train station?", "Leute ansprechen: „Excuse me“. „Sorry“ sagt man eher, wenn etwas passiert ist."],
+    ["Entschuldigung, wo ist der Bahnhof?", "Excuse me, where is the train station?", "Leute ansprechen: „Excuse me“. „Sorry“ = wenn etwas passiert ist."],
     ["Gehen Sie geradeaus.", "Go straight ahead."],
     ["Biegen Sie links ab.", "Turn left."],
     ["Ist es weit von hier?", "Is it far from here?"],
-    ["Ich habe mich verlaufen.", "I'm lost.", "Wörtlich „Ich bin verloren“ – nicht „I have lost me/myself“. Kurz und einfach!"],
-    ["Wann fährt der nächste Bus?", "When does the next bus leave?", "Fragen mit „does“: When DOES the bus leave? – nicht „When leaves the bus?“"],
-    ["Eine Fahrkarte nach London, bitte.", "One ticket to London, please.", "Richtung = „to“: a ticket TO London, the train TO Berlin. Nicht „after London“!"],
+    ["Ich habe mich verlaufen.", "I'm lost.", "Wörtlich „Ich bin verloren“ – nicht „I have lost me“."],
+    ["Wann fährt der nächste Bus?", "When does the next bus leave?", "Fragen mit „does“ – nicht „When leaves the bus?“"],
+    ["Eine Fahrkarte nach London, bitte.", "One ticket to London, please.", "Richtung = „to“. Nicht „after London“!"],
     ["Können Sie mir helfen?", "Can you help me?"],
-    ["Wo ist die nächste Haltestelle?", "Where is the nearest bus stop?", "„nearest“ = die räumlich nächste. „next“ = die als Nächstes kommende (zeitlich)."],
-    ["Wie komme ich zum Flughafen?", "How do I get to the airport?", "„get to“ = hinkommen. Nicht „How come I to the airport?“"]
+    ["Wo ist die nächste Haltestelle?", "Where is the nearest bus stop?", "„nearest“ = räumlich, „next“ = zeitlich."],
+    ["Wie komme ich zum Flughafen?", "How do I get to the airport?", "„get to“ = hinkommen."]
   ],
   "Small Talk": [
     ["Wie war dein Wochenende?", "How was your weekend?"],
-    ["Das Wetter ist heute schön.", "The weather is nice today.", "„today“ steht meist am Satzende, nicht mitten im Satz wie im Deutschen."],
-    ["Was machst du beruflich?", "What do you do for a living?", "Feste Wendung: „for a living“ = beruflich/zum Lebensunterhalt. Auch: „What's your job?“"],
-    ["Hast du Hobbys?", "Do you have any hobbies?", "In Fragen benutzt man oft „any“: Do you have ANY hobbies/questions/plans?"],
-    ["Ich lerne Englisch.", "I'm learning English.", "Verlaufsform! „I'm learning“ = ich bin gerade dabei. „I learn“ klingt nach allgemeiner Gewohnheit."],
+    ["Das Wetter ist heute schön.", "The weather is nice today.", "„today“ steht meist am Satzende."],
+    ["Was machst du beruflich?", "What do you do for a living?", "Feste Wendung: „for a living“. Auch: „What's your job?“"],
+    ["Hast du Hobbys?", "Do you have any hobbies?", "In Fragen oft „any“: Do you have ANY hobbies?"],
+    ["Ich lerne Englisch.", "I'm learning English.", "Verlaufsform! „I'm learning“ = gerade dabei."],
     ["Kannst du das bitte wiederholen?", "Can you repeat that, please?"],
-    ["Sprich bitte langsamer.", "Please speak more slowly.", "Adverb: „more slowly“. Umgangssprachlich hört man auch „slower“ – beides okay."],
-    ["Ich verstehe.", "I understand.", "Kein „I understand it“ nötig – kurz ist hier besser."],
-    ["Was bedeutet das?", "What does that mean?", "Mit „does“: What DOES that mean? – nicht „What means that?“ Ein Klassiker!"],
-    ["Das klingt gut!", "That sounds good!", "„sounds” + Adjektiv: sounds good, sounds great. Nicht „sounds well“."]
+    ["Sprich bitte langsamer.", "Please speak more slowly.", "Adverb: „more slowly“, umgangssprachlich auch „slower“."],
+    ["Ich verstehe.", "I understand.", "Kein „it“ nötig – kurz ist besser."],
+    ["Was bedeutet das?", "What does that mean?", "Nicht „What means that?“ – ein Klassiker!"],
+    ["Das klingt gut!", "That sounds good!", "sounds + Adjektiv: sounds good. Nicht „sounds well“."]
   ],
   "Notfall & Gesundheit": [
     ["Ich brauche einen Arzt.", "I need a doctor."],
-    ["Mir ist schlecht.", "I feel sick.", "Gefühle: „I feel sick/tired/cold“. Nicht wörtlich „Me is bad“!"],
-    ["Ich habe Kopfschmerzen.", "I have a headache.", "Einzahl mit „a“: a headache, a stomachache. Nicht „I have head pains“."],
-    ["Wo ist die nächste Apotheke?", "Where is the nearest pharmacy?", "„pharmacy“ oder brit. „chemist's“. „drugstore“ (US) verkauft auch Kosmetik & Co."],
+    ["Mir ist schlecht.", "I feel sick.", "Gefühle: „I feel sick/tired/cold“."],
+    ["Ich habe Kopfschmerzen.", "I have a headache.", "Einzahl mit „a“: a headache, a stomachache."],
+    ["Wo ist die nächste Apotheke?", "Where is the nearest pharmacy?", "„pharmacy“ oder brit. „chemist's“."],
     ["Rufen Sie bitte Hilfe!", "Please call for help!"],
-    ["Ich habe meine Tasche verloren.", "I lost my bag.", "Einfache Vergangenheit reicht: „I lost“. „I have lost“ geht auch (brit.)."],
-    ["Ich bin allergisch gegen Nüsse.", "I'm allergic to nuts.", "„allergic TO“ – nicht „against“! Ein sehr häufiger Deutsch-Fehler."],
-    ["Es ist ein Notfall.", "It's an emergency.", "Vor Vokalen „an“: an emergency, an apple, an hour."]
+    ["Ich habe meine Tasche verloren.", "I lost my bag.", "Einfache Vergangenheit reicht: „I lost“."],
+    ["Ich bin allergisch gegen Nüsse.", "I'm allergic to nuts.", "„allergic TO“ – nicht „against“!"],
+    ["Es ist ein Notfall.", "It's an emergency.", "Vor Vokalen „an“: an emergency, an apple."]
   ]
 };
 
-const VOCAB = {
+const SENT_B = {
+  "Meinung & Diskussion": [
+    ["Meiner Meinung nach hast du recht.", "In my opinion, you are right.", "„IN my opinion“ – nicht „after my opinion“. Kürzer: „I think you're right.“"],
+    ["Ich stimme dir völlig zu.", "I completely agree with you.", "agree WITH someone. Und niemals „I am agree“ – „agree“ ist ein Verb, kein Adjektiv!"],
+    ["Da bin ich anderer Meinung.", "I see that differently.", "Direkter: „I disagree.“ – höflicher: „I'm not sure I agree.“"],
+    ["Einerseits ja, andererseits nein.", "On the one hand yes, on the other hand no.", "Feste Struktur: „on the one hand … on the other hand“."],
+    ["Das kommt darauf an.", "That depends.", "Mit Ergänzung: „It depends ON the weather“ – nicht „from“!"],
+    ["Was hältst du davon?", "What do you think about it?", "Meinung erfragt man mit „What“ – nicht „How do you think“."],
+    ["Ich bin mir nicht sicher.", "I'm not sure."],
+    ["Das ergibt Sinn.", "That makes sense.", "„MAKES sense“ – nicht „gives sense“. Genauso: make a decision, make a mistake."]
+  ],
+  "Arbeit & Beruf": [
+    ["Ich arbeite seit drei Jahren dort.", "I have been working there for three years.", "Die since/for-Falle: seit + Zeitraum = „for“ (for three years), seit + Zeitpunkt = „since“ (since 2023). Und: Present Perfect, nicht „I work there since…“!"],
+    ["Ich habe morgen ein Vorstellungsgespräch.", "I have a job interview tomorrow."],
+    ["Können wir den Termin verschieben?", "Can we postpone the appointment?", "„postpone“ = auf später verschieben. Auch: „move the appointment“."],
+    ["Ich melde mich bei Ihnen.", "I will get back to you.", "Feste Wendung: „get back to you“ – nicht wörtlich übersetzen!"],
+    ["Ich bin gerade in einer Besprechung.", "I'm in a meeting right now."],
+    ["Das Gehalt ist verhandelbar.", "The salary is negotiable."],
+    ["Ich bekomme eine Gehaltserhöhung.", "I'm getting a pay rise.", "Falscher Freund: „become“ heißt „werden“, nicht „bekommen“! „I become a pay rise“ hieße „Ich werde eine Gehaltserhöhung“ 😄"],
+    ["Ich mache gerade eine Weiterbildung.", "I'm currently doing further training.", "Falscher Freund: „currently“ = aktuell/gerade. „actual“ heißt „tatsächlich“, nicht „aktuell“!"]
+  ],
+  "Reisen & Probleme": [
+    ["Mein Flug wurde gestrichen.", "My flight was cancelled."],
+    ["Ich habe meinen Anschluss verpasst.", "I missed my connection.", "„miss“ = verpassen. „I lost my train“ hieße, du hast ihn verloren wie einen Schlüssel."],
+    ["Könnten Sie mir ein Hotel empfehlen?", "Could you recommend a hotel?", "„Could“ ist höflicher als „Can“ – gut für Bitten an Fremde."],
+    ["Die Klimaanlage funktioniert nicht.", "The air conditioning doesn't work."],
+    ["Ich möchte mich beschweren.", "I would like to make a complaint.", "make a complaint – oder: complain ABOUT something."],
+    ["Gibt es hier WLAN?", "Is there Wi-Fi here?", "„WLAN“ versteht im Ausland niemand – es heißt „Wi-Fi“!"],
+    ["Unser Auto hatte eine Panne.", "Our car broke down.", "Phrasal Verb: „break down“ = kaputtgehen (Auto, Maschine)."],
+    ["Wie lange dauert die Fahrt?", "How long does the journey take?", "Dauer = „take“: It takes two hours. Nicht „How long goes the journey“."]
+  ],
+  "Telefon & E-Mail": [
+    ["Können Sie mich bitte zurückrufen?", "Could you call me back, please?"],
+    ["Ich rufe wegen meiner Bestellung an.", "I'm calling about my order."],
+    ["Vielen Dank im Voraus.", "Thank you in advance."],
+    ["Mit freundlichen Grüßen", "Kind regards", "E-Mail-Schluss: „Kind regards“ oder „Best regards“ – nicht „With friendly greetings“!"],
+    ["Ich freue mich auf Ihre Antwort.", "I look forward to your reply.", "„look forward to“ + Substantiv oder -ing: I look forward to hearing from you."],
+    ["Anbei finden Sie die Datei.", "Please find attached the file.", "Moderner und einfacher: „I've attached the file.“"],
+    ["Die Leitung ist besetzt.", "The line is busy."],
+    ["Sie haben sich verwählt.", "You've got the wrong number."]
+  ],
+  "Gefühle & Erlebnisse": [
+    ["Ich freue mich darauf.", "I'm looking forward to it."],
+    ["Das hat mich überrascht.", "That surprised me."],
+    ["Ich war noch nie in England.", "I have never been to England.", "Erfahrungen: Present Perfect + „been TO“: I have never been to England. Nicht „I was never in England“."],
+    ["Es hat sich gelohnt.", "It was worth it.", "Feste Wendung: „worth it“, „worth the money“, „worth a try“."],
+    ["Ich habe mich sehr amüsiert.", "I really enjoyed myself.", "enjoy MYSELF – das Reflexiv gehört dazu. Oder einfach: „I had a great time.“"],
+    ["Zum Glück ist nichts passiert.", "Luckily, nothing happened."],
+    ["Ich mache mir Sorgen um dich.", "I'm worried about you.", "worried ABOUT – nicht „around you“ oder „for you“."],
+    ["Das war mir peinlich.", "That was embarrassing for me.", "„embarrassing“ = peinlich (Sache), „embarrassed“ = peinlich berührt (Person). Nicht „painful“ – das heißt schmerzhaft!"]
+  ],
+  "Pläne & Zukunft": [
+    ["Wenn ich Zeit habe, komme ich vorbei.", "If I have time, I'll drop by.", "Nach „if“ und „when“ steht KEIN „will“: If I HAVE time (nicht: if I will have time)."],
+    ["Ich habe vor, Englisch zu studieren.", "I'm planning to study English."],
+    ["Wollen wir uns nächste Woche treffen?", "Shall we meet next week?", "Vorschläge: „Shall we …?“ oder „How about meeting …?“"],
+    ["Ich kann es kaum erwarten.", "I can't wait.", "Wörtlich „Ich kann nicht warten“ – kurze, sehr häufige Wendung."],
+    ["Mal sehen, was passiert.", "Let's see what happens."],
+    ["Wenn ich du wäre, würde ich das machen.", "If I were you, I would do it.", "Konditional: „If I WERE you“ – im if-Satz steht kein „would“."],
+    ["Es könnte später regnen.", "It might rain later.", "„might“ = könnte (Vermutung). Schwächer als „will“, stärker als „won't“."],
+    ["Ich habe es mir anders überlegt.", "I've changed my mind.", "Feste Wendung: „change one's mind“ = seine Meinung ändern."]
+  ]
+};
+
+const VOCAB_A = {
   "Grundwörter": [
     ["ja", "yes"], ["nein", "no"], ["bitte", "please"], ["danke", "thank you"],
     ["Entschuldigung", "sorry"], ["vielleicht", "maybe"], ["heute", "today"],
@@ -348,14 +416,71 @@ const VOCAB = {
   ]
 };
 
+const VOCAB_B = {
+  "Arbeit & Beruf": [
+    ["die Bewerbung", "application"], ["der Lebenslauf", "CV", "Britisch „CV“, amerikanisch „résumé“."],
+    ["die Erfahrung", "experience"], ["das Gehalt", "salary"],
+    ["die Besprechung", "meeting"], ["der Kollege", "colleague"],
+    ["die Frist", "deadline"], ["einstellen (Person)", "to hire"],
+    ["kündigen (selbst)", "to quit", "Selbst kündigen = „quit“. Gekündigt werden = „to be fired/dismissed“."],
+    ["die Fähigkeit", "skill"]
+  ],
+  "Unregelmäßige Verben": [
+    ["denken – dachte – gedacht", "think – thought – thought"],
+    ["bringen – brachte – gebracht", "bring – brought – brought"],
+    ["fangen – fing – gefangen", "catch – caught – caught"],
+    ["fliegen – flog – geflogen", "fly – flew – flown"],
+    ["vergessen – vergaß – vergessen", "forget – forgot – forgotten"],
+    ["brechen – brach – gebrochen", "break – broke – broken"],
+    ["ausgeben – gab aus – ausgegeben", "spend – spent – spent", "„spend“ für Geld UND Zeit: spend money, spend time."],
+    ["verlieren – verlor – verloren", "lose – lost – lost", "Ein „o“! „loose“ (mit oo) heißt „locker“."],
+    ["gewinnen – gewann – gewonnen", "win – won – won"],
+    ["fahren – fuhr – gefahren", "drive – drove – driven"]
+  ],
+  "Verbindungswörter": [
+    ["obwohl", "although"], ["deshalb", "therefore"],
+    ["trotzdem", "nevertheless"], ["außerdem", "besides"],
+    ["während", "while"], ["sobald", "as soon as"],
+    ["damit / sodass", "so that"], ["jedoch", "however"],
+    ["entweder … oder", "either … or"], ["weder … noch", "neither … nor"]
+  ],
+  "Adjektive B1": [
+    ["zuverlässig", "reliable"], ["verfügbar", "available"],
+    ["notwendig", "necessary"], ["ähnlich", "similar"],
+    ["eigentlich / tatsächlich", "actually", "Falscher Freund: „actually“ = eigentlich/tatsächlich – NICHT „aktuell“ (das ist „currently“)!"],
+    ["enttäuscht", "disappointed"], ["aufgeregt", "excited"],
+    ["verwirrt", "confused"], ["stolz", "proud"], ["neugierig", "curious"]
+  ],
+  "Phrasal Verbs": [
+    ["aufgeben", "to give up"], ["herausfinden", "to find out"],
+    ["sich kümmern um", "to look after"], ["aufwachsen", "to grow up"],
+    ["weitermachen", "to carry on"], ["absagen", "to call off"],
+    ["aufpassen", "to watch out"], ["einschalten", "to turn on"],
+    ["ausschalten", "to turn off"], ["nachschlagen (Wort)", "to look up"]
+  ],
+  "Gesellschaft & Alltag": [
+    ["die Umwelt", "environment"], ["die Regierung", "government"],
+    ["die Nachrichten", "news", "„news“ ist Einzahl: The news IS good."],
+    ["die Versicherung", "insurance"], ["der Vertrag", "contract"],
+    ["die Rechnung (geschäftlich)", "invoice", "Im Restaurant: „bill“. Geschäftlich/Firma: „invoice“."],
+    ["das Gesetz", "law"], ["die Meinung", "opinion"],
+    ["die Entscheidung", "decision"], ["das Verhalten", "behaviour"]
+  ]
+};
+
 // Erklärungen für typische Versprecher: "richtigesWort<gesagtesWort"
 const EXPLAIN = {
   "by<with": "Zahlungs- und Transportart = „by“: pay by card, go by bus. „with“ betont das Werkzeug in der Hand.",
-  "to<after": "Richtung = „to“: a ticket to London. „after“ heißt „nach“ nur im zeitlichen Sinn (after lunch).",
+  "to<after": "Richtung = „to“: a ticket to London. „after“ heißt „nach“ nur zeitlich (after lunch).",
   "to<against": "Im Englischen ist man „allergic TO“ etwas – nie „against“.",
   "on<in": "Reduziert = „on sale“. „in sale“ gibt es nicht.",
   "nearest<next": "„nearest“ = räumlich am nächsten, „next“ = zeitlich der nächste.",
-  "excuse<sorry": "Leute ansprechen: „Excuse me“. „Sorry“ = wenn etwas passiert ist."
+  "excuse<sorry": "Leute ansprechen: „Excuse me“. „Sorry“ = wenn etwas passiert ist.",
+  "for<since": "seit + Zeitraum = „for“ (for three years), seit + Zeitpunkt = „since“ (since 2023).",
+  "getting<becoming": "„become“ heißt „werden“, nicht „bekommen“! bekommen = get.",
+  "currently<actually": "„actually“ = eigentlich/tatsächlich. aktuell/gerade = „currently“.",
+  "about<around": "Sorgen macht man sich „about“ jemanden: worried about you.",
+  "make<give": "Feste Wendungen mit „make“: make sense, make a decision, make a complaint."
 };
 
 const DAILY_GOAL = 20;
@@ -374,8 +499,9 @@ const store = {
 };
 
 let state = {
+  lvl: 'A',
   ds: 'S',
-  cat: Object.keys(SENT)[0],
+  cat: Object.keys(SENT_A)[0],
   idx: 0,
   flipped: false,
   known: store.get('known', {}),
@@ -384,11 +510,11 @@ let state = {
   quiz: { order: [], i: 0, score: 0, total: 0, answered: false }
 };
 
-// Migration alter Speicherstände (ohne Datensatz-Präfix)
+// Migration ganz alter Speicherstände (ohne Präfix)
 (function migrate() {
   let changed = false;
   Object.keys(state.known).forEach(k => {
-    if (!k.startsWith('S|') && !k.startsWith('V|')) {
+    if (!/^(S|V|SB|VB)\|/.test(k)) {
       state.known['S|' + k] = state.known[k];
       delete state.known[k];
       changed = true;
@@ -403,7 +529,10 @@ if (state.daily.date !== todayKey()) {
 }
 
 const $ = id => document.getElementById(id);
-const DATA = () => state.ds === 'S' ? SENT : VOCAB;
+const dsKey = () => state.ds + (state.lvl === 'B' ? 'B' : '');
+const DATA = () => state.lvl === 'A'
+  ? (state.ds === 'S' ? SENT_A : VOCAB_A)
+  : (state.ds === 'S' ? SENT_B : VOCAB_B);
 const CATS = () => Object.keys(DATA());
 
 function speak(text) {
@@ -455,7 +584,7 @@ function cardKey(ds, cat, i) { return ds + '|' + cat + '|' + i; }
 function pool() {
   const list = DATA()[state.cat];
   const unknown = [];
-  list.forEach((_, i) => { if (!state.known[cardKey(state.ds, state.cat, i)]) unknown.push(i); });
+  list.forEach((_, i) => { if (!state.known[cardKey(dsKey(), state.cat, i)]) unknown.push(i); });
   return unknown.length ? unknown : list.map((_, i) => i);
 }
 
@@ -478,7 +607,7 @@ function renderCard() {
     tipBox.style.display = 'none';
   }
   const total = DATA()[state.cat].length;
-  const knownCount = DATA()[state.cat].filter((_, i) => state.known[cardKey(state.ds, state.cat, i)]).length;
+  const knownCount = DATA()[state.cat].filter((_, i) => state.known[cardKey(dsKey(), state.cat, i)]).length;
   $('f-counter').textContent = 'Gemeistert: ' + knownCount + ' von ' + total + ' in dieser Kategorie';
 }
 
@@ -509,8 +638,9 @@ let recognizing = false;
 function norm(s) {
   return s.toLowerCase()
     .replace(/i'm/g, 'i am').replace(/what's/g, 'what is').replace(/that's/g, 'that is')
-    .replace(/it's/g, 'it is').replace(/i'll/g, 'i will')
-    .replace(/[.,!?;:'’"]/g, ' ')
+    .replace(/it's/g, 'it is').replace(/i'll/g, 'i will').replace(/i've/g, 'i have')
+    .replace(/can't/g, 'cannot').replace(/doesn't/g, 'does not').replace(/you've/g, 'you have')
+    .replace(/[.,!?;:'’"–]/g, ' ')
     .replace(/\s+/g, ' ').trim();
 }
 
@@ -571,7 +701,6 @@ function startPron() {
     else { verdict = pct + ' % erkannt. Höre dir den Satz erst an (🔊) und sprich ihn langsam nach.'; }
     $('pron-verdict').textContent = verdict;
     if (pct < 100) $('pron-heard').textContent = 'Verstanden habe ich: „' + a + '“';
-    // Fehler-Erklärung suchen
     for (const [t, s] of d.subs) {
       const ex = EXPLAIN[t + '<' + s];
       if (ex) {
@@ -584,7 +713,7 @@ function startPron() {
   };
   rec.onerror = e => {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      $('pron-verdict').textContent = 'Kein Mikrofon-Zugriff. Erlaube das Mikrofon in Chrome – falls keine Abfrage kommt, funktioniert die Spracherkennung erst, wenn die App online (https) läuft.';
+      $('pron-verdict').textContent = 'Kein Mikrofon-Zugriff. Erlaube das Mikrofon in Chrome (Schloss-Symbol in der Adressleiste → Berechtigungen).';
     } else if (e.error === 'no-speech') {
       $('pron-verdict').textContent = 'Ich habe nichts gehört – versuch es noch einmal.';
     } else if (e.error === 'network') {
@@ -611,13 +740,13 @@ $('fcard').addEventListener('click', () => {
 $('btn-audio').addEventListener('click', () => speak(DATA()[state.cat][state.idx][1]));
 $('btn-back').addEventListener('click', goBack);
 $('btn-know').addEventListener('click', () => {
-  state.known[cardKey(state.ds, state.cat, state.idx)] = true;
+  state.known[cardKey(dsKey(), state.cat, state.idx)] = true;
   store.set('known', state.known);
   bumpDaily();
   nextCard(true);
 });
 $('btn-again').addEventListener('click', () => {
-  delete state.known[cardKey(state.ds, state.cat, state.idx)];
+  delete state.known[cardKey(dsKey(), state.cat, state.idx)];
   store.set('known', state.known);
   bumpDaily();
   nextCard(true);
@@ -693,9 +822,13 @@ function renderStats() {
   $('s-known').textContent = Object.keys(state.known).length;
   const q = state.daily.quizTotal;
   $('s-quiz').textContent = (q ? Math.round(state.daily.quizRight / q * 100) : 0) + ' %';
-  [['S', SENT, 'cat-rows-s'], ['V', VOCAB, 'cat-rows-v']].forEach(([ds, data, boxId]) => {
-    const box = $(boxId);
-    box.innerHTML = '';
+  const all = $('cat-prog-all');
+  all.innerHTML = '';
+  [['S', SENT_A, 'Sätze · A1–A2'], ['V', VOCAB_A, 'Vokabeln · A1–A2'],
+   ['SB', SENT_B, 'Sätze · B1'], ['VB', VOCAB_B, 'Vokabeln · B1']].forEach(([ds, data, title]) => {
+    const sec = document.createElement('div');
+    sec.className = 'cat-prog';
+    sec.innerHTML = '<h3>' + title + '</h3>';
     Object.keys(data).forEach(cat => {
       const total = data[cat].length;
       const k = data[cat].filter((_, i) => state.known[cardKey(ds, cat, i)]).length;
@@ -703,8 +836,9 @@ function renderStats() {
       row.className = 'cat-row';
       row.innerHTML = '<div class="top"><span>' + cat + '</span><span>' + k + ' / ' + total + '</span></div>' +
         '<div class="bar"><div class="bar-fill" style="width:' + Math.round(k / total * 100) + '%"></div></div>';
-      box.appendChild(row);
+      sec.appendChild(row);
     });
+    all.appendChild(sec);
   });
 }
 
@@ -720,7 +854,7 @@ $('btn-reset').addEventListener('click', () => {
   toast('Zurückgesetzt');
 });
 
-// ---------- Datensatz & Kategorien ----------
+// ---------- Niveau, Datensatz & Kategorien ----------
 function renderChips() {
   const chipsBox = $('chips');
   chipsBox.innerHTML = '';
@@ -740,16 +874,28 @@ function renderChips() {
   });
 }
 
-function setDataset(ds) {
-  state.ds = ds;
+function refreshDataset() {
   state.cat = CATS()[0];
   history = [];
-  $('seg-s').classList.toggle('active', ds === 'S');
-  $('seg-v').classList.toggle('active', ds === 'V');
   renderChips();
   nextCard();
   if (currentView === 'quiz') startQuiz();
 }
+
+function setLevel(lvl) {
+  state.lvl = lvl;
+  $('lvl-a').classList.toggle('active', lvl === 'A');
+  $('lvl-b').classList.toggle('active', lvl === 'B');
+  refreshDataset();
+}
+function setDataset(ds) {
+  state.ds = ds;
+  $('seg-s').classList.toggle('active', ds === 'S');
+  $('seg-v').classList.toggle('active', ds === 'V');
+  refreshDataset();
+}
+$('lvl-a').addEventListener('click', () => setLevel('A'));
+$('lvl-b').addEventListener('click', () => setLevel('B'));
 $('seg-s').addEventListener('click', () => setDataset('S'));
 $('seg-v').addEventListener('click', () => setDataset('V'));
 
@@ -761,8 +907,9 @@ function setView(v) {
     $('view-' + x).classList.toggle('active', x === v);
     $('nav-' + x).classList.toggle('active', x === v);
   });
-  document.getElementById('seg').style.display = v === 'stats' ? 'none' : 'flex';
-  document.getElementById('chips').style.display = v === 'stats' ? 'none' : 'flex';
+  $('seg-lvl').style.display = v === 'stats' ? 'none' : 'flex';
+  $('seg').style.display = v === 'stats' ? 'none' : 'flex';
+  $('chips').style.display = v === 'stats' ? 'none' : 'flex';
   if (v === 'quiz') startQuiz();
   if (v === 'stats') renderStats();
 }
@@ -773,8 +920,7 @@ $('nav-stats').addEventListener('click', () => setView('stats'));
 renderDaily();
 renderChips();
 nextCard();
-</script>
-<script>
+
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js');
 }
